@@ -1,0 +1,12 @@
+bin/
+support/build/
+support/src/wip/
+drivers/build/
+data/build/
+application/build/
+players/build/
+players/src/backup/
+players/src/wip/
+.vscode/configurationCache.log
+.vscode/dryrun.log
+.vscode/targets.log

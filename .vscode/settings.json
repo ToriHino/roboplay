@@ -1,0 +1,10 @@
+{
+  "files.associations": {
+    "fast_memcpy.h": "c",
+    "player_interface.h": "c",
+    "midi-pac.h": "c",
+    "printf_simple.h": "c",
+    "waves.h": "c",
+    "stdint.h": "c"
+  }
+}

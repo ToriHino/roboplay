@@ -1,0 +1,197 @@
+/*
+ * RoboPlay for MSX
+ * Created by RoboSoft Inc. in 2026
+ *
+ * mwm.h
+ *
+ * MWM: MoonBlaster Wave
+ */
+
+#pragma once
+
+#include <stdint.h>
+#include <stdbool.h>
+
+#define NR_WAVE_CHANNELS 24
+#define NR_WAVES         48
+
+#define MAX_OWN_TONES    64
+#define MAX_OWN_PATCHES  48
+
+#define COMMAND_CHANNEL  24
+
+#define MAX_SONG_SEGMENTS 3
+
+#define MAX_PATTERN  79
+#define MAX_POSITION 219
+#define MAX_STEP     15
+
+#define STEP_BUFFER_SIZE 25
+
+#define XLFO_SIZE 18
+
+#define NR_MODULATION_WAVES 3
+#define MODULATION_WAVE_LENGTH 16
+
+#define SONG_NAME_LENGTH     50
+#define WAVE_KIT_NAME_LENGTH 8
+
+#define NOTE_ON             96      /* 001 - 096 */
+#define NOTE_OFF            97      /* 097       */
+#define WAVE_CHANGE         98      /* 098 - 145 */
+#define VOLUME_CHANGE       146     /* 146 - 177 */
+#define STEREO_SET          178     /* 178 - 192 */
+#define NOTE_LINK           193     /* 193 - 211 */
+#define PITCH_BEND          212     /* 212 - 230 */
+#define DETUNE              231     /* 231 - 237 */
+#define MODULATION          238     /* 238 - 240 */
+#define REVERB_ON           241     /* 241       */
+#define DAMP                242     /* 242 - 243 */
+#define LFO                 243     /* 243 - 244 */
+#define REVERB_OFF          245     /* 245       */
+#define XTRA_LFO            246     /* 246 - 254 */
+#define NO_EVENT            255
+
+#define COMMAND_TEMPO          23   /* 001 - 023 */
+#define COMMAND_PATTERN_END    24   /* 024       */
+#define COMMAND_STATUS_BYTE    25   /* 025 - 027 */
+#define COMMAND_TRANSPOSE      28   /* 028 - 076 */
+#define COMMAND_FREQUENCY      77   /* 077 - ... */
+
+#define FREQUENCY_MODE_NORMAL     0
+#define FREQUENCY_MODE_PITCH_BEND 1
+#define FREQUENCY_MODE_MODULATION 2
+
+#define REVERB_ENABLED  0x08
+#define REVERB_DISABLED 0x00
+
+typedef struct
+{
+    uint8_t song_length;
+    uint8_t loop_position;
+    uint8_t stereo[NR_WAVE_CHANNELS];
+    uint8_t tempo;
+    uint8_t base_frequency;
+    int8_t  detune[NR_WAVE_CHANNELS];
+    int8_t  modulation[NR_MODULATION_WAVES][MODULATION_WAVE_LENGTH];
+    uint8_t start_waves[NR_WAVE_CHANNELS];
+    uint8_t wave_numbers[NR_WAVES];
+    uint8_t wave_volumes[NR_WAVES];
+    char    song_name[SONG_NAME_LENGTH];
+    char    wave_kit_name[WAVE_KIT_NAME_LENGTH];
+} MWM_HEADER;
+
+typedef struct
+{
+    uint16_t size;
+    uint8_t  nr_of_patterns;
+} MWM_PATTERN_HEADER;
+
+typedef struct 
+{
+    uint8_t   last_note;
+    uint8_t   frequency_mode;
+    int16_t   pitch_bend_speed;
+    int8_t    modulation_index;
+    uint8_t   modulation_count;
+    int8_t    detune_value;
+    uint8_t   next_tone_low;
+    uint8_t   next_tone_high;
+    uint16_t  next_frequency;
+    uint8_t   current_wave;
+    int8_t    current_stereo;
+    uint8_t   pseudo_reverb;
+    uint8_t  *header_bytes;
+    uint8_t   volume;
+    uint16_t *frequency_table;
+    uint16_t  pitch_frequency;
+} MWM_STATUS_TABLE;
+
+static const uint8_t g_tabdiv12[][2] =
+{
+    {0xB0, 0x00}, {0xB0, 0x02}, {0xB0, 0x04}, {0xB0, 0x06}, {0xB0, 0x08}, {0xB0, 0x0A}, {0xB0, 0x0C}, {0xB0, 0x0E}, {0xB0, 0x10}, {0xB0, 0x12}, {0xB0, 0x14}, {0xB0, 0x16},
+    {0xC0, 0x00}, {0xC0, 0x02}, {0xC0, 0x04}, {0xC0, 0x06}, {0xC0, 0x08}, {0xC0, 0x0A}, {0xC0, 0x0C}, {0xC0, 0x0E}, {0xC0, 0x10}, {0xC0, 0x12}, {0xC0, 0x14}, {0xC0, 0x16},
+    {0xD0, 0x00}, {0xD0, 0x02}, {0xD0, 0x04}, {0xD0, 0x06}, {0xD0, 0x08}, {0xD0, 0x0A}, {0xD0, 0x0C}, {0xD0, 0x0E}, {0xD0, 0x10}, {0xD0, 0x12}, {0xD0, 0x14}, {0xD0, 0x16},
+    {0xE0, 0x00}, {0xE0, 0x02}, {0xE0, 0x04}, {0xE0, 0x06}, {0xE0, 0x08}, {0xE0, 0x0A}, {0xE0, 0x0C}, {0xE0, 0x0E}, {0xE0, 0x10}, {0xE0, 0x12}, {0xE0, 0x14}, {0xE0, 0x16},
+    {0xF0, 0x00}, {0xF0, 0x02}, {0xF0, 0x04}, {0xF0, 0x06}, {0xF0, 0x08}, {0xF0, 0x0A}, {0xF0, 0x0C}, {0xF0, 0x0E}, {0xF0, 0x10}, {0xF0, 0x12}, {0xF0, 0x14}, {0xF0, 0x16},
+    {0x00, 0x00}, {0x00, 0x02}, {0x00, 0x04}, {0x00, 0x06}, {0x00, 0x08}, {0x00, 0x0A}, {0x00, 0x0C}, {0x00, 0x0E}, {0x00, 0x10}, {0x00, 0x12}, {0x00, 0x14}, {0x00, 0x16},
+    {0x10, 0x00}, {0x10, 0x02}, {0x10, 0x04}, {0x10, 0x06}, {0x10, 0x08}, {0x10, 0x0A}, {0x10, 0x0C}, {0x10, 0x0E}, {0x10, 0x10}, {0x10, 0x12}, {0x10, 0x14}, {0x10, 0x16},
+    {0x20, 0x00}, {0x20, 0x02}, {0x20, 0x04}, {0x20, 0x06}, {0x20, 0x08}, {0x20, 0x0A}, {0x20, 0x0C}, {0x20, 0x0E}, {0x20, 0x10}, {0x20, 0x12}, {0x20, 0x14}, {0x20, 0x16},
+    {0x30, 0x00}, {0x30, 0x02}, {0x30, 0x04}, {0x30, 0x06}, {0x30, 0x08}, {0x30, 0x0A}, {0x30, 0x0C}, {0x30, 0x0E}, {0x30, 0x10}, {0x30, 0x12}, {0x30, 0x14}, {0x30, 0x16},
+    {0x40, 0x00}, {0x40, 0x02}, {0x40, 0x04}, {0x40, 0x06}, {0x40, 0x08}, {0x40, 0x0A}, {0x40, 0x0C}, {0x40, 0x0E}, {0x40, 0x10}, {0x40, 0x12}, {0x40, 0x14}, {0x40, 0x16},
+    {0x50, 0x00}, {0x50, 0x02}, {0x50, 0x04}, {0x50, 0x06}, {0x50, 0x08}, {0x50, 0x0A}, {0x50, 0x0C}, {0x50, 0x0E}, {0x50, 0x10}, {0x50, 0x12}, {0x50, 0x14}, {0x50, 0x16},
+    {0x60, 0x00}, {0x60, 0x02}, {0x60, 0x04}, {0x60, 0x06}, {0x60, 0x08}, {0x60, 0x0A}, {0x60, 0x0C}, {0x60, 0x0E}, {0x60, 0x10}, {0x60, 0x12}, {0x60, 0x14}, {0x60, 0x16},
+    {0x70, 0x00}, {0x70, 0x02}, {0x70, 0x04}, {0x70, 0x06}, {0x70, 0x08}, {0x70, 0x0A}, {0x70, 0x0C}, {0x70, 0x0E}, {0x70, 0x10}, {0x70, 0x12}, {0x70, 0x14}, {0x70, 0x16},
+    {0x80, 0x00}, {0x80, 0x02}, {0x80, 0x04}, {0x80, 0x06}, {0x80, 0x08}, {0x80, 0x0A}, {0x80, 0x0C}, {0x80, 0x0E}, {0x80, 0x10}, {0x80, 0x12}, {0x80, 0x14}, {0x80, 0x16},
+    {0x90, 0x00}, {0x90, 0x02}, {0x90, 0x04}, {0x90, 0x06}, {0x90, 0x08}, {0x90, 0x0A}, {0x90, 0x0C}, {0x90, 0x0E}, {0x90, 0x10}, {0x90, 0x12}, {0x90, 0x14}, {0x90, 0x16},
+    {0xA0, 0x00}, {0xA0, 0x02}, {0xA0, 0x04}, {0xA0, 0x06}, {0xA0, 0x08}, {0xA0, 0x0A}, {0xA0, 0x0C}, {0xA0, 0x0E}, {0xA0, 0x10}, {0xA0, 0x12}, {0xA0, 0x14}, {0xA0, 0x16}
+};
+
+static const uint8_t g_xls_table[][2] =
+{
+    {49, 0}, {50, 0}, {51, 0}, {52, 0}, {53, 0}, {54, 0}, {55, 0}, {58, 5}, {03, 0}
+};
+
+static uint8_t **g_waves_table;
+
+static uint8_t   g_own_tone_info[MAX_OWN_TONES];
+static OWN_PATCH g_own_patches[MAX_OWN_PATCHES];
+
+static MWM_HEADER  *g_mwm_header;
+static uint8_t     *g_position_table;
+static uint8_t    **g_patterns;
+
+static uint8_t g_song_segments[MAX_SONG_SEGMENTS];
+static uint8_t g_current_song_segment;
+static uint8_t g_waves_segment;
+
+static MWM_STATUS_TABLE g_status_table[NR_WAVE_CHANNELS];
+
+static uint8_t g_xlfo[XLFO_SIZE];
+
+static uint8_t g_speed;
+static uint8_t g_speed_count;
+static int8_t  g_transpose_value;
+static uint8_t g_position;
+static uint8_t g_step;
+
+static uint8_t g_base_frequency;
+
+static uint8_t *g_pattern_data;
+
+static uint8_t g_step_buffer[STEP_BUFFER_SIZE];
+
+static char    g_song_name[SONG_NAME_LENGTH + 1];
+static char    g_wave_kit_name[WAVE_KIT_NAME_LENGTH + 1];
+
+bool load_song_data(const char *file_name);
+bool load_wave_kit(const char* file_name);
+
+void next_song_position(void);
+void calculate_wave(const uint8_t channel);
+void play_waves(void);
+
+void tempo_command(void);
+void pattern_end_command(void);
+void status_byte_command(void);
+void transpose_command(void);
+void frequency_command(void);
+
+void handle_frequency_mode(void);
+void handle_pitch_bend(const uint8_t channel);
+void handle_modulation(const uint8_t channel);
+
+void note_on_event(const uint8_t channel);
+void note_off_event(const uint8_t channel);
+void wave_change_event(const uint8_t channel);
+void volume_change_event(const uint8_t channel);
+void stereo_change_event(const uint8_t channel);
+void note_link_event(const uint8_t channel);
+void pitch_bend_event(const uint8_t channel);
+void detune_event(const uint8_t channel);
+void modulation_event(const uint8_t channel);
+void reverb_on_event(const uint8_t channel);
+void reverb_off_event(const uint8_t channel);
+void damp_event(const uint8_t channel);
+void lfo_event(const uint8_t channel);
+void extra_lfo_event(const uint8_t channel);

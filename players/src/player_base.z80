@@ -1,0 +1,49 @@
+;
+; RoboPlay for MSX
+; Created by RoboSoft Inc. in 2026
+;
+; player_base.z80
+;
+
+
+    .globl  _load
+    .globl  _update
+    .globl  _rewind
+    .globl  _command
+    .globl  _get_refresh
+    .globl  _get_subsongs
+    .globl  _get_player_info
+    .globl  _get_title
+    .globl  _get_author
+    .globl  _get_description
+
+    .area   _HEADER (ABS)
+
+    .org    0x4000
+
+    .db 0x52    ;R
+    .db 0x4F    ;O
+    .db 0x42    ;B
+    .db 0x4F    ;O
+    .db 0x50    ;P
+    .db 0x4C    ;L
+    .db 0x41    ;A
+    .db 0x59    ;Y
+
+    .db 0x02    ; Major version
+    .db 0x00    ; Minor version
+
+    .dw _load
+    .dw _update
+    .dw _rewind
+    .dw _command
+    .dw _get_refresh
+    .dw _get_subsongs
+    .dw _get_player_info
+    .dw _get_title
+    .dw _get_author
+    .dw _get_description
+
+    .org    0x4100  ;RoboPlay player code start adress
+
+    .area   _CODE
