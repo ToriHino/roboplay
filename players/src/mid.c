@@ -22,6 +22,13 @@
 /* End of the data window of a mapper segment */
 #define SEGMENT_END ((uint8_t *)(DATA_SEGMENT_BASE + DATA_SEGMENT_SIZE))
 
+/* MIDI continuous controller numbers */
+#define MIDI_CC_MODULATION_WHEEL 1
+#define MIDI_CC_CHANNEL_VOLUME 7
+#define MIDI_CC_PAN 10
+#define MIDI_CC_EXPRESSION 11
+#define MIDI_CC_SUSTAIN_PEDAL 64
+
 bool load(const char* file_name)
 {
     g_roboplay_interface->open(file_name, false);
@@ -134,6 +141,9 @@ void rewind(int8_t subsong)
         g_midi_channel_data[channel].instrument = 0;
         g_midi_channel_data[channel].panpot     = 0;
         g_midi_channel_data[channel].vibrato    = 0;
+        g_midi_channel_data[channel].volume     = 100;  /* GM default */
+        g_midi_channel_data[channel].expression = 127;  /* GM default */
+        g_midi_channel_data[channel].sustain    = false;
         g_midi_channel_data[channel].drum_channel = (channel == DRUM_CHANNEL);
     }
 
@@ -141,6 +151,7 @@ void rewind(int8_t subsong)
     {
         g_voice_data[voice].number = voice;
         g_voice_data[voice].is_active = false;
+        g_voice_data[voice].sustained = false;
         g_voice_data[voice].activated = 0;
         g_voice_data[voice].midi_channel = NULL;
         g_voice_data[voice].note = 0;
@@ -191,7 +202,7 @@ uint8_t get_subsongs(void)
 
 char* get_player_info(void)
 {
-    return "Standard MIDI file player (Wave) V1.2 by RoboSoft Inc.";
+    return "Standard MIDI file player (Wave) V1.3 by RoboSoft Inc.";
 }
 
 char* get_title(void)
@@ -520,10 +531,19 @@ void note_off(uint8_t note, uint8_t velocity, MIDI_CHANNEL_DATA *midi_channel)
         /* Only voices that are still sounding need a key-off write */
         if(voice->is_active && voice->note == note && voice->midi_channel == midi_channel)
         {
-            voice->is_active = false;
+            if(midi_channel->sustain)
+            {
+                /* Defer the key-off until the sustain pedal is released */
+                voice->sustained = true;
+            }
+            else
+            {
+                voice->sustained = false;
+                voice->is_active = false;
 
-            voice->reg_misc &= ~OPL4_KEY_ON_BIT;
-            g_roboplay_interface->opl4_write_wave(OPL4_REG_MISC + voice->number, voice->reg_misc);
+                voice->reg_misc &= ~OPL4_KEY_ON_BIT;
+                g_roboplay_interface->opl4_write_wave(OPL4_REG_MISC + voice->number, voice->reg_misc);
+            }
         }
     }
 }
@@ -536,10 +556,6 @@ void note_on(uint8_t note, uint8_t velocity, MIDI_CHANNEL_DATA *midi_channel)
   YRW801_WAVE_DATA *wave_data[2];
   VOICE_DATA* voice[2];
   uint8_t i = 0, voices = 0;
-#if MID_REUSE_LOADED_WAVE
-  bool wave_loaded[2];
-  bool load_pending = false;
-#endif
 
   /* Determine voices and wave data */
   if(midi_channel->drum_channel)
@@ -590,10 +606,8 @@ void note_on(uint8_t note, uint8_t velocity, MIDI_CHANNEL_DATA *midi_channel)
   for(i = 0; i < voices; i++)
   {
     VOICE_DATA *current_voice = get_voice(wave_data[i]);
-#if MID_REUSE_LOADED_WAVE
-    wave_loaded[i] = (current_voice->wave_data == wave_data[i]);
-#endif
     current_voice->is_active = true;
+    current_voice->sustained = false;
     if(++g_voice_age == 0) g_voice_age = 1;   /* 0 is reserved */
     current_voice->activated = g_voice_age;
     current_voice->midi_channel = midi_channel;
@@ -603,22 +617,13 @@ void note_on(uint8_t note, uint8_t velocity, MIDI_CHANNEL_DATA *midi_channel)
     voice[i] = current_voice;
 
     current_voice->reg_f_number = (wave_data[i]->tone >> 8) & OPL4_TONE_NUMBER_BIT8;
-#if MID_MERGE_FNUMBER
+
     /* Pitch is known up front, so the F-number register only needs to be written once */
     calc_pitch(current_voice);
-#endif
     g_roboplay_interface->opl4_write_wave(OPL4_REG_F_NUMBER + current_voice->number, current_voice->reg_f_number);
 
     /* Set tone number immediately (triggers header loading) */
-#if MID_REUSE_LOADED_WAVE
-    if(!wave_loaded[i])
-    {
-      g_roboplay_interface->opl4_write_wave(OPL4_REG_TONE_NUMBER + current_voice->number, wave_data[i]->tone & 0xFF);
-      load_pending = true;
-    }
-#else
     g_roboplay_interface->opl4_write_wave(OPL4_REG_TONE_NUMBER + current_voice->number, wave_data[i]->tone & 0xFF);
-#endif
   }
 
   /* Second pass: set parameters which can be set while loading */
@@ -632,17 +637,11 @@ void note_on(uint8_t note, uint8_t velocity, MIDI_CHANNEL_DATA *midi_channel)
   }
 
   /* Wait for completion of loading */
-#if MID_REUSE_LOADED_WAVE
-  if(load_pending)
-#endif
     g_roboplay_interface->opl4_wait_for_load();
 
   /* Third pass: set remaining parameters */
   for(i = 0; i < voices; i++)
   {
-#if MID_REUSE_LOADED_WAVE
-    if(!wave_loaded[i])
-#endif
     {
       /* A header load overwrites these registers, so they are only valid to skip when no load happened */
       g_roboplay_interface->opl4_write_wave(OPL4_REG_ATTACK_DECAY1 + voice[i]->number, voice[i]->wave_data->reg_attack_decay1);
@@ -673,12 +672,84 @@ void pitch_wheel(uint8_t midi_channel, uint16_t value)
 }
 void control_change(uint8_t midi_channel, uint8_t id, uint8_t value)
 {
+    MIDI_CHANNEL_DATA *ch = &g_midi_channel_data[midi_channel];
+
     switch(id)
     {
-        case 10:
-            /* Change stereo panning */
-            if(midi_channel != DRUM_CHANNEL)
-                g_midi_channel_data[midi_channel].panpot = (value - 0x40) >> 3;
+        case MIDI_CC_MODULATION_WHEEL:  /* Modulation wheel → vibrato depth */
+            if(!ch->drum_channel)
+            {
+                ch->vibrato = value;
+                {
+                    VOICE_DATA *voice = g_voice_data;
+                    uint8_t count;
+                    for(count = NR_OF_WAVE_CHANNELS; count; count--, voice++)
+                    {
+                        if(voice->is_active && voice->midi_channel == ch)
+                            update_vibrato_depth(voice);
+                    }
+                }
+            }
+            break;
+
+        case MIDI_CC_CHANNEL_VOLUME:  /* Channel volume */
+            ch->volume = value & 0x7F;
+            {
+                VOICE_DATA *voice = g_voice_data;
+                uint8_t count;
+                for(count = NR_OF_WAVE_CHANNELS; count; count--, voice++)
+                {
+                    if(voice->is_active && voice->midi_channel == ch)
+                        update_volume(voice);
+                }
+            }
+            break;
+
+        case MIDI_CC_PAN: /* Pan */
+            if(!ch->drum_channel)
+                ch->panpot = (value - 0x40) >> 3;
+            break;
+
+        case MIDI_CC_EXPRESSION: /* Expression */
+            ch->expression = value & 0x7F;
+            {
+                VOICE_DATA *voice = g_voice_data;
+                uint8_t count;
+                for(count = NR_OF_WAVE_CHANNELS; count; count--, voice++)
+                {
+                    if(voice->is_active && voice->midi_channel == ch)
+                        update_volume(voice);
+                }
+            }
+            break;
+
+        case MIDI_CC_SUSTAIN_PEDAL: /* Sustain pedal */
+            if(ch->drum_channel)
+                break;
+
+            if(value >= 64)
+            {
+                ch->sustain = true;
+            }
+            else
+            {
+                /* Pedal released – key-off every voice that was being held by sustain */
+                ch->sustain = false;
+                {
+                    VOICE_DATA *voice = g_voice_data;
+                    uint8_t count;
+                    for(count = NR_OF_WAVE_CHANNELS; count; count--, voice++)
+                    {
+                        if(voice->is_active && voice->sustained && voice->midi_channel == ch)
+                        {
+                            voice->sustained = false;
+                            voice->is_active = false;
+                            voice->reg_misc &= ~OPL4_KEY_ON_BIT;
+                            g_roboplay_interface->opl4_write_wave(OPL4_REG_MISC + voice->number, voice->reg_misc);
+                        }
+                    }
+                }
+            }
             break;
     }
 }
@@ -753,28 +824,27 @@ void calc_pitch(VOICE_DATA *voice)
 
 void update_pitch(VOICE_DATA *voice)
 {
-#if !MID_MERGE_FNUMBER
-    calc_pitch(voice);
-#endif
-
     g_roboplay_interface->opl4_write_wave(OPL4_REG_OCTAVE + voice->number, voice->reg_octave);
-#if !MID_MERGE_FNUMBER
-    g_roboplay_interface->opl4_write_wave(OPL4_REG_F_NUMBER + voice->number, voice->reg_f_number);
-#endif
 }
 
 void update_volume(VOICE_DATA *voice)
 {
     int16_t att = voice->wave_data->tone_attenuate;
 
+    /* Velocity + Channel Volume (CC7) + Expression (CC11).
+       Because g_volume_table is logarithmic, adding the entries approximates
+       the product of the three linear factors (GM behaviour). */
     att += g_volume_table[voice->velocity];
+    att += g_volume_table[voice->midi_channel->volume];
+    att += g_volume_table[voice->midi_channel->expression];
+
     /* A volume factor of 0xFE leaves att unchanged, so skip the divide */
     if(voice->wave_data->volume_factor != 0xFE)
     {
         int16_t d = 0x7F - att;
 
         /* d * volume_factor must fit in a 16-bit int (SDCC): that holds for d >= -128.
-           att can reach 510 (tone_attenuate is uint8_t), so use 32 bits for the rare extreme case. */
+           att can reach higher values now, so use 32 bits for the extreme case. */
         if(d >= -128)
             att = 0x7F - d * voice->wave_data->volume_factor / 0xFE;
         else

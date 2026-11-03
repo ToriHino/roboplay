@@ -13,22 +13,6 @@
 
 #define MIDI_HEADER_SIZE 14
 
-/* Build-time options */
-
-/* 1: write the full F-number (incl. tone bit 8) once, before the tone number write,
-      instead of writing the register twice. Saves one OPL4 write per voice. */
-#ifndef MID_MERGE_FNUMBER
-#define MID_MERGE_FNUMBER 1
-#endif
-
-/* 1: when a voice is re-used for the same wave, skip the tone number write, the header
-      load wait and the four envelope/tremolo writes. EXPERIMENTAL: only valid if the OPL4
-      restarts a loaded wave from its start on key-on without a new tone number write.
-      Verify on real hardware before enabling. */
-#ifndef MID_REUSE_LOADED_WAVE
-#define MID_REUSE_LOADED_WAVE 0
-#endif
-
 /* YRW801 drum bank (regions[0x80]): keys 0x18..0x52 with gaps at 0x1D and 0x22, terminated by key_min == 0xFF.
    From key 0x23 up there are no gaps, so entry index = note - DRUM_INDEX_OFFSET. Below that, search by key. */
 #define DRUM_GAPLESS_FIRST 0x23
@@ -78,12 +62,16 @@ typedef struct
     uint8_t instrument;
     uint8_t panpot;
     uint8_t vibrato;
+    uint8_t volume;       /* CC7  – channel volume (GM default 100) */
+    uint8_t expression;   /* CC11 – expression (GM default 127) */
+    bool    sustain;      /* CC64 – sustain pedal */
     bool    drum_channel;
 } MIDI_CHANNEL_DATA;
 
 typedef struct
 {
     bool     is_active;
+    bool     sustained;      /* true if note-off was deferred by the sustain pedal */
     uint16_t activated;      /* voice age: 0 = never/stolen, otherwise sequence number */
 
     uint8_t number;
