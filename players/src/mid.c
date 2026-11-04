@@ -24,7 +24,6 @@
 
 /* MIDI continuous controller numbers */
 #define MIDI_CC_MODULATION_WHEEL 1
-#define MIDI_CC_CHANNEL_VOLUME 7
 #define MIDI_CC_PAN 10
 #define MIDI_CC_EXPRESSION 11
 #define MIDI_CC_SUSTAIN_PEDAL 64
@@ -688,19 +687,6 @@ void control_change(uint8_t midi_channel, uint8_t id, uint8_t value)
                         if(voice->is_active && voice->midi_channel == ch)
                             update_vibrato_depth(voice);
                     }
-                }
-            }
-            break;
-
-        case MIDI_CC_CHANNEL_VOLUME:  /* Channel volume */
-            ch->volume = value & 0x7F;
-            {
-                VOICE_DATA *voice = g_voice_data;
-                uint8_t count;
-                for(count = NR_OF_WAVE_CHANNELS; count; count--, voice++)
-                {
-                    if(voice->is_active && voice->midi_channel == ch)
-                        update_volume(voice);
                 }
             }
             break;
