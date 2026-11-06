@@ -63,8 +63,6 @@ bool load(const char *file_name)
     g_roboplay_interface->read(g_waves_table, DATA_SEGMENT_SIZE);
     g_roboplay_interface->close();
 
-    g_roboplay_interface->set_segment(g_song_segments[0]);
-
     return true;
 }
 
@@ -84,10 +82,12 @@ bool update(void)
         {
             if(g_step_buffer[i])
             {
+                MFM_FM_STATUS_TABLE *status_table = &g_4op_status_table[i];
+
                 if(g_step_buffer[i] <= FM_NOTE_ON)
-                    fm_note_on_event(i, g_port_data_4op, g_4op_status_table);
+                    fm_note_on_event(i, g_port_data_4op, status_table);
                 else if(g_step_buffer[i] == FM_NOTE_OFF)
-                    fm_note_off_event(i, g_port_data_4op, g_4op_status_table);
+                    fm_note_off_event(i, g_port_data_4op, status_table);
                 else if(g_step_buffer[i] < FM_VOLUME_CHANGE)
                     fm_4op_instrument_change_event(i);
                 else if(g_step_buffer[i] < FM_STEREO_SET)
@@ -95,15 +95,15 @@ bool update(void)
                 else if(g_step_buffer[i] < FM_NOTE_LINK)
                     fm_4op_stereo_change_event(i, g_step_buffer[i]);
                 else if(g_step_buffer[i] < FM_PITCH_BEND)
-                    fm_note_link_event(i, g_port_data_4op, g_4op_status_table, g_step_buffer[i]);
+                    fm_note_link_event(i, g_port_data_4op, status_table, g_step_buffer[i]);
                 else if(g_step_buffer[i] < FM_BRIGHTNESS)
-                    fm_pitch_bend_event(i, g_4op_status_table, g_step_buffer[i]);
+                    fm_pitch_bend_event(status_table, g_step_buffer[i]);
                 else if(g_step_buffer[i] < FM_DETUNE)
                     fm_4op_brightness_event(i, g_step_buffer[i]);
                 else if(g_step_buffer[i] < FM_MODULATION)
-                    fm_detune_event(i, g_4op_status_table, g_step_buffer[i]);
+                    fm_detune_event(status_table, g_step_buffer[i]);
                 else if(g_step_buffer[i] < FM_NONE)
-                    fm_modulation_event(i, g_4op_status_table, g_step_buffer[i]);
+                    fm_modulation_event(status_table, g_step_buffer[i]);
             }
         }
 
@@ -113,10 +113,12 @@ bool update(void)
             uint8_t index = i + g_mfm_header->nr_of_4op_channels;
             if(g_step_buffer[index])
             {
+                MFM_FM_STATUS_TABLE *status_table = &g_2op_status_table[i];
+
                 if(g_step_buffer[index] <= FM_NOTE_ON)
-                    fm_note_on_event(i, g_port_data_2op, g_2op_status_table);
+                    fm_note_on_event(i, g_port_data_2op, status_table);
                 else if(g_step_buffer[index] == FM_NOTE_OFF)
-                    fm_note_off_event(i, g_port_data_2op, g_2op_status_table);
+                    fm_note_off_event(i, g_port_data_2op, status_table);
                 else if(g_step_buffer[index] < FM_VOLUME_CHANGE)
                     fm_2op_instrument_change_event(i);
                 else if(g_step_buffer[index] < FM_STEREO_SET)
@@ -124,15 +126,15 @@ bool update(void)
                 else if(g_step_buffer[index] < FM_NOTE_LINK)
                     fm_2op_stereo_change_event(i, g_step_buffer[index]);
                 else if(g_step_buffer[index] < FM_PITCH_BEND)
-                    fm_note_link_event(i, g_port_data_2op, g_2op_status_table, g_step_buffer[index]);
+                    fm_note_link_event(i, g_port_data_2op, status_table, g_step_buffer[index]);
                 else if(g_step_buffer[index] < FM_BRIGHTNESS)
-                    fm_pitch_bend_event(i, g_2op_status_table, g_step_buffer[index]);
+                    fm_pitch_bend_event(status_table, g_step_buffer[index]);
                 else if(g_step_buffer[index] < FM_DETUNE)
                     fm_2op_brightness_event(i, g_step_buffer[index]);
                 else if(g_step_buffer[index] < FM_MODULATION)
-                    fm_detune_event(i, g_2op_status_table, g_step_buffer[index]);
+                    fm_detune_event(status_table, g_step_buffer[index]);
                 else if(g_step_buffer[index] < FM_NONE)
-                    fm_modulation_event(i, g_2op_status_table, g_step_buffer[index]);
+                    fm_modulation_event(status_table, g_step_buffer[index]);
             }
         }
 
@@ -141,26 +143,28 @@ bool update(void)
         {
             if(g_step_buffer[i + MAX_FM_CHANNELS])
             {
+                MFM_WAVE_STATUS_TABLE *status_table = &g_wave_status_table[i];
+
                 if(g_step_buffer[i + MAX_FM_CHANNELS] <= WAVE_NOTE_ON)
-                    wave_note_on_event(i);
+                    wave_note_on_event(i, status_table);
                 else if(g_step_buffer[i + MAX_FM_CHANNELS] == WAVE_NOTE_OFF)
-                    wave_note_off_event(i);
+                    wave_note_off_event(i, status_table);
                 else if(g_step_buffer[i + MAX_FM_CHANNELS] < WAVE_VOLUME_CHANGE)
-                    wave_change_event(i);
+                    wave_change_event(i, status_table);
                 else if(g_step_buffer[i + MAX_FM_CHANNELS] < WAVE_STEREO_SET)
-                    wave_volume_change_event(i);
+                    wave_volume_change_event(i, status_table);
                 else if(g_step_buffer[i + MAX_FM_CHANNELS] < WAVE_NOTE_LINK)
-                    wave_stereo_change_event(i);
+                    wave_stereo_change_event(i, status_table);
                 else if(g_step_buffer[i + MAX_FM_CHANNELS] < WAVE_PITCH_BEND)
-                    wave_note_link_event(i);
+                    wave_note_link_event(i, status_table);
                 else if(g_step_buffer[i + MAX_FM_CHANNELS] < WAVE_DETUNE)
-                    wave_pitch_bend_event(i);
+                    wave_pitch_bend_event(i, status_table);
                 else if(g_step_buffer[i + MAX_FM_CHANNELS] < WAVE_MODULATION)
-                    wave_detune_event(i);
+                    wave_detune_event(i, status_table);
                 else if(g_step_buffer[i + MAX_FM_CHANNELS] < WAVE_DAMP)
-                    wave_modulation_event(i);
+                    wave_modulation_event(i, status_table);
                 else if(g_step_buffer[i + MAX_FM_CHANNELS] < WAVE_NONE)
-                    wave_damp_event(i);
+                    wave_damp_event(i, status_table);
             }
         }
 
@@ -188,7 +192,7 @@ bool update(void)
                 if(!next_song_position()) return false;
             }
 
-            g_roboplay_interface->set_segment(g_current_song_segment);
+            g_roboplay_interface->set_segment(g_song_segments[g_current_song_segment]);
 
             if(g_raw_mode)
             {
@@ -268,10 +272,9 @@ bool update(void)
                 if(g_step_buffer[i + MAX_FM_CHANNELS] && g_step_buffer[i + MAX_FM_CHANNELS] <= WAVE_NOTE_ON)
                 {
                     g_wave_status_table[i].frequency_mode = FREQUENCY_MODE_NORMAL;
-                    calculate_wave(i);
-                }
+                    calculate_wave(i, &g_wave_status_table[i]);                }
             }
-            g_roboplay_interface->set_segment(g_song_segments[0]);
+            g_roboplay_interface->set_segment(g_song_segments[g_current_song_segment]);
         }
     }  
 
@@ -283,10 +286,10 @@ void rewind(int8_t subsong)
     /* No subsongs in this format */
     subsong;
 
-    g_roboplay_interface->set_segment(g_song_segments[0]);
+    g_current_song_segment = 0;
+    g_roboplay_interface->set_segment(g_song_segments[g_current_song_segment]);
 
-    if(g_mfm_header->nr_of_4op_channels)
-        g_roboplay_interface->opl4_write_fm_2(0x04,  g_table_4op_on[g_mfm_header->nr_of_4op_channels - 1]);
+    g_roboplay_interface->opl4_write_fm_2(0x04, g_mfm_header->nr_of_4op_channels ? g_table_4op_on[g_mfm_header->nr_of_4op_channels - 1] : 0x00);
 
     g_nr_of_2op_channels = MAX_FM_CHANNELS - (2 * g_mfm_header->nr_of_4op_channels);
 
@@ -359,12 +362,12 @@ void rewind(int8_t subsong)
         g_roboplay_interface->opl4_write_wave(0x68 + i, g_wave_status_table[i].current_stereo);
     }
 
-    g_speed       = g_mfm_header->tempo;
-    g_speed_count = g_speed - 3;
+    g_roboplay_interface->opl4_write_fm_1(0xBD, g_mfm_header->modulation_depth);
 
-    g_transpose_value = 0;
-    
-    g_current_song_segment = 0;
+    g_speed       = g_mfm_header->tempo;
+    g_speed_count = g_speed - 2;
+
+    g_transpose_value = 0;  
 
     g_position = 255;
     g_step     = MAX_STEP;
@@ -391,7 +394,7 @@ uint8_t get_subsongs(void)
 
 char* get_player_info(void)
 {
-    return "MoonBlaster FM player V1.0 by RoboSoft Inc.";
+    return "MoonBlaster FM player V1.1 by RoboSoft Inc.";
 }
 
 char* get_title(void)
@@ -717,42 +720,31 @@ void update_instrument_4op(const uint8_t channel, const uint8_t instrument)
 
 void update_instrument_2op(const uint8_t channel, const uint8_t instrument)
 {
-    g_2op_status_table[channel].frequency_mode = FREQUENCY_MODE_NORMAL;
+    const uint8_t *voice = g_mfm_header->fm_voice_data_2op[instrument - 1];
+    const bool     port  = g_port_data_2op[channel].second_opl_port;
+ 
+    g_2op_status_table[channel].frequency_mode  = FREQUENCY_MODE_NORMAL;
     g_2op_status_table[channel].last_instrument = instrument;
-
+ 
+    /* 20/40/60/80 registers: modulator, carrier (+3), next group +0x20 */
     uint8_t reg = g_2op_registers[channel][0];
-    uint8_t value;
-    for(uint8_t i = 0; i < INSTRUMENT_SIZE_2OP - 3; i++)
+    for(uint8_t i = 0; i < 8; i += 2)
     {
-        value = g_mfm_header->fm_voice_data_2op[instrument - 1][i++];
-
-        write_opl(g_port_data_2op[channel].second_opl_port, reg, value);
-
-        reg += 0x03;
-        value = g_mfm_header->fm_voice_data_2op[instrument - 1][i];
-
-        write_opl(g_port_data_2op[channel].second_opl_port, reg, value);
-
-        reg += 0x1D;
+        write_opl(port, reg,        voice[i]);
+        write_opl(port, reg + 0x03, voice[i + 1]);
+        reg += 0x20;
     }
-
-    reg = g_2op_registers[channel][1];
-    value = g_mfm_header->fm_voice_data_2op[instrument - 1][INSTRUMENT_SIZE_2OP - 3];
-
-    write_opl(g_port_data_2op[channel].second_opl_port, reg, value);
-
-    reg = g_2op_registers[channel][2];
-    value = g_mfm_header->fm_voice_data_2op[instrument - 1][INSTRUMENT_SIZE_2OP - 2];
-
-    write_opl(g_port_data_2op[channel].second_opl_port, reg, value);
-
-    uint8_t pan_setting = read_opl(g_port_data_2op[channel].second_opl_port, reg) & 0x30;
-    if(pan_setting ^ 0x30) pan_setting ^= 0x30;
-
-    reg   = g_2op_registers[channel][3];
-    value = g_mfm_header->fm_voice_data_2op[instrument - 1][INSTRUMENT_SIZE_2OP - 1];
-
-    write_opl(g_port_data_2op[channel].second_opl_port, reg, value | pan_setting);
+ 
+    /* E0 waveform select: modulator, carrier */
+    write_opl(port, g_2op_registers[channel][1], voice[8]);
+    write_opl(port, g_2op_registers[channel][2], voice[9]);
+ 
+    /* C0 feedback/connection: keep the current pan */
+    uint8_t c0  = g_2op_registers[channel][3];
+    uint8_t pan = read_opl(port, c0) & 0x30;
+    if(pan != 0x30) pan ^= 0x30;
+ 
+    write_opl(port, c0, voice[10] | pan);
 }
 
 uint8_t read_opl(const bool second_opl_port, const uint8_t reg)
@@ -805,30 +797,30 @@ bool next_song_position(void)
     return true;
 }
 
-void calculate_wave(const uint8_t channel)
+void calculate_wave(const uint8_t channel, MFM_WAVE_STATUS_TABLE *status_table)
 {
     uint16_t frequency;
     uint8_t note = g_step_buffer[channel + MAX_FM_CHANNELS] - 1;
 
-    if((g_wave_status_table[channel].current_wave == 175) && (note > 35))
+    if((status_table->current_wave == 175) && (note > 35))
     {
         /* GM Drum patch */
-        if(note > 89) note = 89;
+        if(note > 86) note = 86;
         note -= 36;
 
-        GM_DRUM_PATCH *patch = (GM_DRUM_PATCH *)(g_waves_table[g_wave_status_table[channel].current_wave] + sizeof(PATCH));
-        g_wave_status_table[channel].next_tone_low  = patch[note].tone;
-        g_wave_status_table[channel].next_tone_high = 0;
-        g_wave_status_table[channel].header_bytes = patch[note].header_bytes;
+        GM_DRUM_PATCH *patch = (GM_DRUM_PATCH *)(g_waves_table[status_table->current_wave] + sizeof(PATCH));
+        status_table->next_tone_low  = patch[note].tone;
+        status_table->next_tone_high = 0;
+        status_table->header_bytes = patch[note].header_bytes;
         frequency = patch[note].frequency;
     }
-    else if(g_wave_status_table[channel].current_wave > 175)
+    else if(status_table->current_wave > 175)
     {
         /* Own wave */
-        OWN_PATCH      *patch = &g_own_patches[g_wave_status_table[channel].current_wave - 176];
+        OWN_PATCH      *patch = &g_own_patches[status_table->current_wave - 176];
         OWN_PATCH_PART *patch_part = patch->patch_part;
         if(patch->transpose) note += g_transpose_value;
-        g_wave_status_table[channel].header_bytes = 0;
+        status_table->header_bytes = 0;
 
         uint8_t min_note = 0;
         while(note >= patch_part->next_patch_note)
@@ -837,31 +829,31 @@ void calculate_wave(const uint8_t channel)
             patch_part++;
         }
 
-        g_wave_status_table[channel].next_tone_low  = patch_part->tone + 128;
-        g_wave_status_table[channel].next_tone_high = 1;
+        status_table->next_tone_low  = patch_part->tone + 128;
+        status_table->next_tone_high = 1;
 
         note = patch_part->tone_note + note - min_note;
-        g_wave_status_table[channel].last_note = note;
+        status_table->last_note = note;
 
         uint8_t type = (g_own_tone_info[patch_part->tone] & 0x06) >> 1;
 
         if(type == 0x00)
-            g_wave_status_table[channel].frequency_table = g_waves_table[FRQ_TAB_AMIGA];
+            status_table->frequency_table = g_waves_table[FRQ_TAB_AMIGA];
         else if(type == 0x01)
-            g_wave_status_table[channel].frequency_table = g_waves_table[FRQ_TAB_PC];
+            status_table->frequency_table = g_waves_table[FRQ_TAB_PC];
         else
-            g_wave_status_table[channel].frequency_table = g_waves_table[FRQ_TAB_TURBO];
+            status_table->frequency_table = g_waves_table[FRQ_TAB_TURBO];
 
-        frequency = g_wave_status_table[channel].frequency_table[note];
+        frequency = status_table->frequency_table[note];
     }
     else
     {
         /* Regular wave */
-        PATCH      *patch = (PATCH *)g_waves_table[g_wave_status_table[channel].current_wave];
+        PATCH      *patch = (PATCH *)g_waves_table[status_table->current_wave];
         PATCH_PART *patch_part = &patch->patch_part;
 
         if(patch->transpose) note += g_transpose_value;
-        g_wave_status_table[channel].header_bytes = patch->header_bytes;
+        status_table->header_bytes = patch->header_bytes;
 
         uint8_t min_note = 0;       
         while(note >= patch_part->next_patch_note)
@@ -870,12 +862,12 @@ void calculate_wave(const uint8_t channel)
             patch_part++;
         }
 
-        g_wave_status_table[channel].next_tone_low  = patch_part->tone_low;
-        g_wave_status_table[channel].next_tone_high = patch_part->tone_high & 0x01;
+        status_table->next_tone_low  = patch_part->tone_low;
+        status_table->next_tone_high = patch_part->tone_high & 0x01;
 
         note = note + (patch_part->tone_high >> 1) - min_note;
-        g_wave_status_table[channel].last_note = note;
-        g_wave_status_table[channel].frequency_table = patch_part->frequency_table;
+        status_table->last_note = note;
+        status_table->frequency_table = patch_part->frequency_table;
 
         uint16_t octave = g_tabdiv12[note][0] << 8;
         uint8_t  index  = g_tabdiv12[note][1] >> 1;
@@ -884,12 +876,12 @@ void calculate_wave(const uint8_t channel)
         frequency = (frequency << 1) + octave;
     }
 
-    int detune_value = g_wave_status_table[channel].detune_value;
+    int detune_value = 2 * status_table->detune_value;
     if(detune_value >= 0) detune_value += 0x0800;
     frequency += detune_value;
     frequency &= 0xF7FF;
 
-    g_wave_status_table[channel].next_frequency = frequency;
+    status_table->next_frequency = frequency;
 }
 
 void play_waves(void)
@@ -958,45 +950,48 @@ void handle_frequency_mode(void)
     }
 }
 
-void fm_handle_pitch_bend(const uint8_t channel, MFM_FM_PORT_DATA *port_data, MFM_FM_STATUS_TABLE *status_table)
+/* One pitch bend / modulation step */
+static void fm_slide(const uint8_t channel, MFM_FM_PORT_DATA *port_data,
+                     MFM_FM_STATUS_TABLE *status_table, const int16_t delta)
 {
-    uint16_t frequency = (status_table[channel].last_frequency_high << 8) + 
-                          status_table[channel].last_frequency_low;
-
-    frequency += status_table[channel].pitch_bend_speed;
-
-    status_table[channel].last_frequency_low = frequency & 0xFF;
-    status_table[channel].last_frequency_high = frequency >> 8;
-
-    uint8_t reg  = port_data[channel].frequency_register;
-    write_opl(port_data[channel].second_opl_port, reg, status_table[channel].last_frequency_low);
-
-    reg += 0x10;
-    write_opl(port_data[channel].second_opl_port, reg, status_table[channel].last_frequency_high);
+    MFM_FM_STATUS_TABLE *status = &status_table[channel];
+ 
+    uint16_t last = ((uint16_t)status->last_frequency_high << 8) | status->last_frequency_low;
+    uint16_t f    = last + delta;
+ 
+    if(delta >= 0)
+        f |= (last & 0x0200);          /* "if bit 9 was set, it must stay set" */
+    else if(!(f & 0x0200))
+        f -= 0x0200;                   /* fell below bit 9: borrow from block */
+ 
+    status->last_frequency_low  = (uint8_t)(f & 0xFF);
+    status->last_frequency_high = (uint8_t)(f >> 8);
+ 
+    uint8_t reg = port_data[channel].frequency_register;
+    write_opl(port_data[channel].second_opl_port, reg, status->last_frequency_low);
+    write_opl(port_data[channel].second_opl_port, reg + 0x10, status->last_frequency_high);
 }
 
+void fm_handle_pitch_bend(const uint8_t channel, MFM_FM_PORT_DATA *port_data, MFM_FM_STATUS_TABLE *status_table)
+{
+    fm_slide(channel, port_data, status_table, status_table[channel].pitch_bend_speed);
+}
+ 
 void fm_handle_modulation(const uint8_t channel, MFM_FM_PORT_DATA *port_data, MFM_FM_STATUS_TABLE *status_table)
 {
-    uint8_t count = status_table[channel].modulation_count;
-    int8_t  value = g_mfm_header->modulation[status_table[channel].modulation_index][count];
-
-    uint16_t frequency = (status_table[channel].last_frequency_high << 8) + 
-                          status_table[channel].last_frequency_low;
-
-    frequency += value;
-
-    status_table[channel].last_frequency_low = frequency & 0xFF;
-    status_table[channel].last_frequency_high = frequency >> 8;
-
-    uint8_t reg  = port_data[channel].frequency_register;
-    write_opl(port_data[channel].second_opl_port, reg, status_table[channel].last_frequency_low);
-
-    reg += 0x10;
-    write_opl(port_data[channel].second_opl_port, reg, status_table[channel].last_frequency_high);
-
-    count = (count + 1) % MODULATION_WAVE_LENGTH;
-    if(g_mfm_header->modulation[status_table[channel].modulation_index][count] == 10) count = 0;
-    status_table[channel].modulation_count = count;
+    MFM_FM_STATUS_TABLE *status = &status_table[channel];
+    const int8_t *table = g_mfm_header->modulation[status->modulation_index];
+ 
+    uint8_t count = status->modulation_count;
+ 
+    fm_slide(channel, port_data, status_table, (int16_t)table[count] * 2);
+ 
+    /* Advance; a value of 10 in the next slot marks the end of the table */
+    count++;
+    if(count >= MODULATION_WAVE_LENGTH || table[count] == 10)
+        count = 0;
+ 
+    status->modulation_count = count;
 }
 
 void wave_handle_pitch_bend(const uint8_t channel)
@@ -1045,39 +1040,31 @@ void wave_handle_modulation(const uint8_t channel)
 
 void fm_note_on_event(const uint8_t channel, MFM_FM_PORT_DATA *port_data, MFM_FM_STATUS_TABLE *status_table)
 {
-    uint8_t reg = port_data[channel].frequency_register;
-    uint8_t data = status_table[channel].next_frequency_low;
-
-    status_table[channel].last_frequency_low = data;
-
-    write_opl(port_data[channel].second_opl_port, reg, data);
-
-    reg += 0x10;
-    data = status_table[channel].next_frequency_high & 0xDF;
-    write_opl(port_data[channel].second_opl_port, reg, data);
-
-    data = status_table[channel].next_frequency_high | 0x20;
-    write_opl(port_data[channel].second_opl_port, reg, data);
-
-    status_table[channel].last_frequency_high = data;       
+    const bool port = port_data[channel].second_opl_port;
+    const uint8_t reg = port_data[channel].frequency_register;
+ 
+    /* Key off, load new frequency, key on (same order as the original) */
+    write_opl(port, reg + 0x10, status_table->next_frequency_high & 0xDF);
+    write_opl(port, reg,        status_table->next_frequency_low);
+ 
+    status_table->last_frequency_low  = status_table->next_frequency_low;
+    status_table->last_frequency_high = status_table->next_frequency_high | 0x20;
+ 
+    write_opl(port, reg + 0x10, status_table->last_frequency_high);
 }
-
+ 
 void fm_note_off_event(const uint8_t channel, MFM_FM_PORT_DATA *port_data, MFM_FM_STATUS_TABLE *status_table)
 {
-    uint8_t reg = port_data[channel].frequency_register;
-    uint8_t data = status_table[channel].next_frequency_low;
-
-    status_table[channel].last_frequency_low = data;
-
-    write_opl(port_data[channel].second_opl_port, reg, data);
-
-    reg += 0x10;
-    data = status_table[channel].next_frequency_high & 0xDF;
-
-    write_opl(port_data[channel].second_opl_port, reg, data);
-
-    status_table[channel].last_frequency_high = data;       
+    /* Bend / modulation stop, the current (possibly bent) frequency is kept
+       and only the key-on bit is cleared. last_frequency_high is left as is,
+       like the original (iy+12). */
+    status_table->frequency_mode = FREQUENCY_MODE_NORMAL;
+ 
+    write_opl(port_data[channel].second_opl_port,
+              port_data[channel].frequency_register + 0x10,
+              status_table->last_frequency_high & 0xDF);
 }
+
 
 void fm_4op_instrument_change_event(const uint8_t channel)
 {
@@ -1127,29 +1114,56 @@ void fm_2op_stereo_change_event(const uint8_t channel, const uint8_t stereo_valu
 
 void fm_note_link_event(const uint8_t channel, MFM_FM_PORT_DATA *port_data, MFM_FM_STATUS_TABLE* status_table, const uint8_t link_value)
 {
-    int8_t link = link_value - 198;
-    status_table[channel].last_note += link;
-    status_table[channel].frequency_mode = FREQUENCY_MODE_NORMAL;
-
-    uint16_t frequency = g_frequency_table[status_table[channel].last_note - 1];
-    frequency += status_table[channel].detune_value;
-
-    status_table[channel].next_frequency_low  = (frequency & 0xFF);
-    status_table[channel].next_frequency_high = frequency >> 8;
-
-    uint8_t reg = port_data[channel].frequency_register;
-    uint8_t data = status_table[channel].next_frequency_low;
-    write_opl(port_data[channel].second_opl_port, reg, data);
-
-    reg += 0x10;
-    data = status_table[channel].next_frequency_high | 0x20;
-    write_opl(port_data[channel].second_opl_port, reg, data);
+    const bool port = port_data[channel].second_opl_port;
+    const uint8_t reg = port_data[channel].frequency_register;
+ 
+    status_table->last_note += (int8_t)(link_value - 198);
+    status_table->frequency_mode = FREQUENCY_MODE_NORMAL;
+ 
+    uint16_t frequency = g_frequency_table[status_table->last_note - 1];
+    frequency += status_table->detune_value;
+ 
+    /* The original stores the linked frequency as "last played" so that a
+       following bend / modulation starts from it. */
+    status_table->last_frequency_low  = (uint8_t)(frequency & 0xFF);
+    status_table->last_frequency_high = (uint8_t)((frequency >> 8) | 0x20);
+ 
+    write_opl(port, reg,        status_table->last_frequency_low);
+    write_opl(port, reg + 0x10, status_table->last_frequency_high);
 }
 
-void fm_pitch_bend_event(const uint8_t channel, MFM_FM_STATUS_TABLE* status_table, const uint8_t pitch_bend_value)
+static void fm_normalize_frequency(MFM_FM_STATUS_TABLE *status)
 {
-    status_table[channel].frequency_mode = FREQUENCY_MODE_PITCH_BEND;
-    status_table[channel].pitch_bend_speed =  pitch_bend_value - 217;
+    uint8_t high = status->last_frequency_high;
+ 
+    if(high & 0x02) return;            /* F-number bit 9 set: enough room */
+    if(!(high & 0x1C)) return;         /* block 0: cannot drop a block    */
+ 
+    uint16_t f = (uint16_t)(((high & 0xDF) << 8) | status->last_frequency_low) << 1;
+ 
+    status->last_frequency_low  = (uint8_t)(f & 0xFF);
+    status->last_frequency_high = (uint8_t)(((high & 0xFC) - 4) | ((f >> 8) & 0x03));
+}
+
+void fm_pitch_bend_event(MFM_FM_STATUS_TABLE* status_table, const uint8_t pitch_bend_value)
+{
+    int16_t speed = (int16_t)(pitch_bend_value - 217) * 2;
+ 
+    status_table->frequency_mode   = FREQUENCY_MODE_PITCH_BEND;
+    status_table->pitch_bend_speed = speed;
+ 
+    if(speed < 0)
+        fm_normalize_frequency(status_table);
+}
+
+void fm_modulation_event(MFM_FM_STATUS_TABLE* status_table, const uint8_t modulation_value)
+{
+    status_table->pitch_bend_speed = 0;
+    status_table->frequency_mode   = FREQUENCY_MODE_MODULATION;
+    status_table->modulation_index = modulation_value - FM_MODULATION;
+    status_table->modulation_count = 0;
+ 
+    fm_normalize_frequency(status_table);
 }
 
 void fm_4op_brightness_event(const uint8_t channel, const uint8_t brightness_value)
@@ -1162,109 +1176,97 @@ void fm_4op_brightness_event(const uint8_t channel, const uint8_t brightness_val
 void fm_2op_brightness_event(const uint8_t channel, const uint8_t brightness_value)
 {
     int8_t new_brightness = brightness_value - 233;
-
-    uint8_t reg = g_port_data_2op[channel].volume_register - 0x03;
+ 
+    uint8_t reg   = g_port_data_2op[channel].volume_register - 0x03;
     uint8_t value = read_opl(g_port_data_2op[channel].second_opl_port, reg);
-    uint8_t ksl = value & 0xC0;
-    
-    value = (value & 0x3F) + new_brightness;
-    
-    write_opl(g_port_data_2op[channel].second_opl_port, reg, value | ksl);
+    uint8_t ksl   = value & 0xC0;
+ 
+    value = (uint8_t)((value & 0x3F) + new_brightness + ksl);
+ 
+    write_opl(g_port_data_2op[channel].second_opl_port, reg, value);
 }
 
-
-void fm_detune_event(const uint8_t channel, MFM_FM_STATUS_TABLE* status_table, const uint8_t detune_value)
+void fm_detune_event(MFM_FM_STATUS_TABLE* status_table, const uint8_t detune_value)
 {
-    status_table[channel].detune_value = detune_value - 243;
+    status_table->detune_value = (int8_t)((detune_value - 243) * 2);
 }
 
-void fm_modulation_event(const uint8_t channel, MFM_FM_STATUS_TABLE* status_table, const uint8_t modulation_value)
+void wave_note_on_event(const uint8_t channel, const MFM_WAVE_STATUS_TABLE *status_table)
 {
-    status_table[channel].pitch_bend_speed = 0;
-    status_table[channel].frequency_mode = FREQUENCY_MODE_MODULATION;
-    status_table[channel].modulation_index = modulation_value - FM_MODULATION;
-    status_table[channel].modulation_count = 0;
-}
-
-void wave_note_on_event(const uint8_t channel)
-{
-    if(g_wave_status_table[channel].header_bytes)
+    if(status_table->header_bytes)
     {
         g_roboplay_interface->set_segment(g_waves_segment);
         
         uint8_t index = 0;
 
         uint8_t reg = 0x80;
-        uint8_t value = g_wave_status_table[channel].header_bytes[index++];
+        uint8_t value = status_table->header_bytes[index++];
         do
         {
             g_roboplay_interface->opl4_write_wave(reg + channel, value);
-            reg   = g_wave_status_table[channel].header_bytes[index++];
-            value = g_wave_status_table[channel].header_bytes[index++];
+            reg   = status_table->header_bytes[index++];
+            value = status_table->header_bytes[index++];
         } while(reg != 0xFF);
 
-        g_roboplay_interface->set_segment(g_song_segments[0]);       
+        g_roboplay_interface->set_segment(g_song_segments[g_current_song_segment]);
     }
 
-    g_roboplay_interface->opl4_write_wave(0x50 + channel, g_wave_status_table[channel].volume | 1);
-    g_roboplay_interface->opl4_write_wave(0x68 + channel, 0x80 | g_wave_status_table[channel].current_stereo);
+    g_roboplay_interface->opl4_write_wave(0x50 + channel, status_table->volume | 1);
+    g_roboplay_interface->opl4_write_wave(0x68 + channel, 0x80 | status_table->current_stereo);
 }
 
-void wave_note_off_event(const uint8_t channel)
+void wave_note_off_event(const uint8_t channel, MFM_WAVE_STATUS_TABLE *status_table)
 {
-    g_wave_status_table[channel].frequency_mode = FREQUENCY_MODE_NORMAL;
+    status_table->frequency_mode = FREQUENCY_MODE_NORMAL;
 
     uint8_t value = g_roboplay_interface->opl4_read_wave_register(0x68 + channel);
     g_roboplay_interface->opl4_write_wave(0x68 + channel, value & 0x7F);
-
 }
 
-void wave_change_event(const uint8_t channel)
-{   
-    g_wave_status_table[channel].frequency_mode = FREQUENCY_MODE_NORMAL;
-
+void wave_change_event(const uint8_t channel, MFM_WAVE_STATUS_TABLE *status_table)
+{
     uint8_t wave = g_step_buffer[channel + MAX_FM_CHANNELS] - WAVE_CHANGE;
-    g_wave_status_table[channel].current_wave = g_mfm_header->wave_numbers[wave];
-
+    status_table->current_wave = g_mfm_header->wave_numbers[wave];
+ 
     uint8_t volume = g_mfm_header->wave_volumes[wave];
-    uint8_t level_direct = (g_wave_status_table[channel].volume & 1);
-    g_wave_status_table[channel].volume = (4 * volume) | level_direct;
+    uint8_t level_direct = (status_table->volume & 1);
+    status_table->volume = (4 * volume) | level_direct;
 }
-
-void wave_volume_change_event(const uint8_t channel)
+ 
+void wave_volume_change_event(const uint8_t channel, MFM_WAVE_STATUS_TABLE *status_table)
 {
     uint8_t volume = g_step_buffer[channel + MAX_FM_CHANNELS] - WAVE_VOLUME_CHANGE;
     volume = (volume ^ 0x1F) << 1;
 
-    uint8_t level_direct = (g_wave_status_table[channel].volume & 0x01);
-    g_wave_status_table[channel].volume = (4 * volume) | level_direct;
+    uint8_t level_direct = (status_table->volume & 0x01);
+    status_table->volume = (4 * volume) | level_direct;
 
-    g_roboplay_interface->opl4_write_wave(0x50 + channel, g_wave_status_table[channel].volume);
+    g_roboplay_interface->opl4_write_wave(0x50 + channel, status_table->volume);
 }
 
-void wave_stereo_change_event(const uint8_t channel)
+void wave_stereo_change_event(const uint8_t channel, MFM_WAVE_STATUS_TABLE *status_table)
 {
-    g_wave_status_table[channel].frequency_mode = FREQUENCY_MODE_NORMAL;
-    g_wave_status_table[channel].current_stereo = (g_step_buffer[channel + MAX_FM_CHANNELS] - (WAVE_STEREO_SET + 7)) & 0x0F;
+    status_table->frequency_mode = FREQUENCY_MODE_NORMAL;
+    status_table->current_stereo = (g_step_buffer[channel + MAX_FM_CHANNELS] - (WAVE_STEREO_SET + 7)) & 0x0F;
 
     uint8_t value = g_roboplay_interface->opl4_read_wave_register(0x68 + channel) & 0xF0;
-    g_roboplay_interface->opl4_write_wave(0x68 + channel, value & g_wave_status_table[channel].current_stereo);
+    g_roboplay_interface->opl4_write_wave(0x68 + channel, value | status_table->current_stereo);
 }
 
-void wave_note_link_event(const uint8_t channel)
+void wave_note_link_event(const uint8_t channel, MFM_WAVE_STATUS_TABLE *status_table)
 {
-    g_wave_status_table[channel].frequency_mode = FREQUENCY_MODE_NORMAL;
+    status_table->frequency_mode = FREQUENCY_MODE_NORMAL;
 
-    uint8_t note = g_wave_status_table[channel].last_note + g_step_buffer[channel + MAX_FM_CHANNELS] - (WAVE_NOTE_LINK + 9);
-    g_wave_status_table[channel].last_note = note;
+    uint8_t note = status_table->last_note + g_step_buffer[channel + MAX_FM_CHANNELS] - (WAVE_NOTE_LINK + 9);
+    status_table->last_note = note;
 
     uint16_t frequency;
-    if((g_wave_status_table[channel].next_tone_high == 1) && (g_wave_status_table[channel].next_tone_low >= 128))
+    if((status_table->next_tone_high == 1) && (status_table->next_tone_low >= 128))
     {
         /* Link own wave */
         g_roboplay_interface->set_segment(g_waves_segment);
-        frequency = g_wave_status_table[channel].frequency_table[note];
-        g_roboplay_interface->set_segment(g_song_segments[0]);
+        frequency = status_table->frequency_table[note];
+        g_roboplay_interface->set_segment(g_song_segments[g_current_song_segment]);
     }
     else
     {
@@ -1272,49 +1274,48 @@ void wave_note_link_event(const uint8_t channel)
         uint8_t  index  = g_tabdiv12[note][1] >> 1;
 
         g_roboplay_interface->set_segment(g_waves_segment);
-        frequency = g_wave_status_table[channel].frequency_table[index];
-        g_roboplay_interface->set_segment(g_song_segments[0]);
+        frequency = status_table->frequency_table[index];
+        g_roboplay_interface->set_segment(g_song_segments[g_current_song_segment]);
 
         frequency = (frequency << 1) + octave;
     }
 
-    int detune_value = g_wave_status_table[channel].detune_value * 2;
+    int detune_value = status_table->detune_value * 2;
     if(detune_value >= 0) detune_value += 0x0800;
     frequency += detune_value;
     frequency &= 0xF7FF;
 
-    g_wave_status_table[channel].pitch_frequency = frequency;
+    status_table->pitch_frequency = frequency;
 
-    g_roboplay_interface->opl4_write_wave(0x20 + channel, frequency & 0xFF | g_wave_status_table[channel].next_tone_high);
-    g_roboplay_interface->opl4_write_wave(0x38 + channel, frequency >> 8 | g_wave_status_table[channel].pseudo_reverb);
+    g_roboplay_interface->opl4_write_wave(0x20 + channel, frequency & 0xFF | status_table->next_tone_high);
+    g_roboplay_interface->opl4_write_wave(0x38 + channel, frequency >> 8 | status_table->pseudo_reverb);
 }
 
-void wave_pitch_bend_event(const uint8_t channel)
+void wave_pitch_bend_event(const uint8_t channel, MFM_WAVE_STATUS_TABLE *status_table)
 {
     int8_t value = g_step_buffer[channel + MAX_FM_CHANNELS] - (WAVE_PITCH_BEND + 9);
-    g_wave_status_table[channel].frequency_mode = FREQUENCY_MODE_PITCH_BEND;
-    g_wave_status_table[channel].pitch_bend_speed = value * 4;
+    status_table->frequency_mode = FREQUENCY_MODE_PITCH_BEND;
+    status_table->pitch_bend_speed = value * 4;
 }
-
-void wave_detune_event(const uint8_t channel)
+void wave_detune_event(const uint8_t channel, MFM_WAVE_STATUS_TABLE *status_table)
 {
     int value = g_step_buffer[channel + MAX_FM_CHANNELS] - (WAVE_DETUNE + 3);
-    g_wave_status_table[channel].detune_value = value * 4;
+    status_table->detune_value = value * 4;
 }
 
-void wave_modulation_event(const uint8_t channel)
+void wave_modulation_event(const uint8_t channel, MFM_WAVE_STATUS_TABLE *status_table)
 {
     int8_t value = g_step_buffer[channel + MAX_FM_CHANNELS] - WAVE_MODULATION;
-    g_wave_status_table[channel].pitch_bend_speed = 0;
-    g_wave_status_table[channel].frequency_mode = FREQUENCY_MODE_MODULATION;
-    g_wave_status_table[channel].modulation_index = value;
-    g_wave_status_table[channel].modulation_count = 0;
+    status_table->pitch_bend_speed = 0;
+    status_table->frequency_mode = FREQUENCY_MODE_MODULATION;
+    status_table->modulation_index = value;
+    status_table->modulation_count = 0;
 }
 
-void wave_damp_event(const uint8_t channel)
+void wave_damp_event(const uint8_t channel, MFM_WAVE_STATUS_TABLE *status_table)
 {
-    g_wave_status_table[channel].frequency_mode = FREQUENCY_MODE_NORMAL;
-    
+    status_table->frequency_mode = FREQUENCY_MODE_NORMAL;
+
     uint8_t value = g_roboplay_interface->opl4_read_wave_register(0x68 + channel);
     g_roboplay_interface->opl4_write_wave(0x68 + channel, value | 0x40);
 }
